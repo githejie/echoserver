@@ -18,7 +18,6 @@ public:
     ~EventLoop();
     using EventHandler = std::function<void (const int fd, const unsigned int events)>;
     void addMonitoredFd(const int fd, const unsigned int events, const EventHandler& eh);
-    void modifyMonitoredFd(const int fd, const unsigned int events, const EventHandler& eh);
     void deleteMonitoredFd(const int fd);
     using Callback = std::function<void ()>;
     void postCallback(const Callback& callback);
@@ -107,26 +106,11 @@ void EventLoop::executeHandler(const epoll_event& e)
 
 void EventLoop::addMonitoredFd(const int fd, const unsigned int events, const EventHandler& eh)
 {
-    if (handlers.find(fd) != handlers.end())
-        modifyMonitoredFd(fd, events, eh);
-
     epoll_event e = {};
     e.events = events;
     e.data.fd = fd;
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &e);
+    epoll_ctl(epoll_fd, handlers.find(fd) == handlers.end() ? EPOLL_CTL_ADD : EPOLL_CTL_MOD, fd, &e);
     handlers.emplace(fd, std::make_pair(eh, events));
-}
-
-void EventLoop::modifyMonitoredFd(const int fd, const unsigned int events, const EventHandler& eh)
-{
-    if (handlers.find(fd) == handlers.end())
-        addMonitoredFd(fd, events, eh);
-
-    epoll_event e = {};
-    e.events = events;
-    e.data.fd = fd;
-    epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &e);
-    handlers.at(fd) = std::make_pair(eh, events);
 }
 
 void EventLoop::deleteMonitoredFd(const int fd)
