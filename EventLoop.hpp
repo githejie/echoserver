@@ -2,7 +2,6 @@
 #define EVENT_LOOP_HPP_
 
 #include <functional>
-#include <thread>
 #include <mutex>
 #include <vector>
 #include <list>
@@ -21,6 +20,8 @@ public:
     void deleteMonitoredFd(const int fd);
     using Callback = std::function<void ()>;
     void postCallback(const Callback& callback);
+    void run();
+    void stop();
 
     EventLoop(const EventLoop&) = delete;
     EventLoop(EventLoop&&) = delete;
@@ -38,45 +39,41 @@ private:
     bool isCallbackExist();
     std::list<Callback> popCallbacks();
 
-    bool stop;
+    bool stopped;
     int epoll_fd;
     int wakeup_fd;
     std::mutex mutex;
     std::list<Callback> callbacks;
     std::vector<epoll_event> ebuffer;
     std::map<int, std::pair<EventHandler, unsigned int>> handlers;
-    std::thread loop_thread;
 };
 
 EventLoop::EventLoop():
-    stop(false),
+    stopped(false),
     epoll_fd(epoll_create1(EPOLL_CLOEXEC)),
-    wakeup_fd(eventfd(0, EFD_NONBLOCK|EFD_CLOEXEC)),
-    loop_thread(std::bind(&EventLoop::runLoop, this))
+    wakeup_fd(eventfd(0, EFD_NONBLOCK|EFD_CLOEXEC))
 {
+    initWakeupEvent();
 }
 
 EventLoop::~EventLoop()
 {
-    stop = true;
-    wakeup();
-
-    if (loop_thread.joinable())
-        loop_thread.join();
-
     close(epoll_fd);
     close(wakeup_fd);
 }
 
-void EventLoop::runLoop()
+void EventLoop::run()
 {
-    initWakeupEvent();
-
-    while (!stop)
+    while (!stopped)
     {
         waitAndHandleEvents();
         executeCallbacks();
     }
+}
+
+void EventLoop::stop()
+{
+    postCallback([this](){ stopped = true; });
 }
 
 void EventLoop::initWakeupEvent()

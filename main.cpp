@@ -20,42 +20,44 @@ int main()
     auto loop = std::make_shared<EventLoop>();
     int listen_fd = socket(result->ai_family, SOCK_STREAM, 0);
     bind(listen_fd, result->ai_addr, result->ai_addrlen);
+    freeaddrinfo(result);
     listen(listen_fd, SOMAXCONN);
     std::cout << "listen fd " << listen_fd << std::endl;
-    for (;;)
+
+    loop->addMonitoredFd(listen_fd, EPOLLIN, [=](const int listen_fd, const unsigned int events)
     {
         int client_fd = accept4(listen_fd, nullptr, nullptr, SOCK_NONBLOCK|SOCK_CLOEXEC);
         if (client_fd == -1)
         {
             std::cout << "accept4 failed: " << strerror(errno) << std::endl;
-            return -1;
+            loop->stop();
+            loop->deleteMonitoredFd(listen_fd);
+            close(listen_fd);
+            return;
         }
-        std::cout << "new client fd " << client_fd << std::endl;
-        loop->postCallback([=]()
-            {
-                loop->addMonitoredFd(client_fd, EPOLLIN, [=](const int fd, const unsigned int events)
-                    {
-                        if (events & EPOLLIN)
-                        {
-                            std::cout << "handler client fd " << fd << std::endl;
-                            char buf[1024];
-                            do {
-                                int n = recv(fd, buf, sizeof(buf), 0);
-                                if (n <= 0)
-                                    break;
-                                if (send(fd, buf, n, 0) < 0)
-                                    break;
-                                return;
-                            } while(0);
-                        }
-                        std::cout << "delete client fd " << fd << std::endl;
-                        loop->deleteMonitoredFd(fd);
-                        close(fd);
-                    });
-            });
-    }
 
-    freeaddrinfo(result);
-    close(listen_fd);
+        std::cout << "new client fd " << client_fd << std::endl;
+        loop->addMonitoredFd(client_fd, EPOLLIN, [=](const int client_fd, const unsigned int events)
+        {
+            if (events & EPOLLIN)
+            {
+                std::cout << "handler client fd " << client_fd << std::endl;
+                char buf[1024];
+                do {
+                    int n = recv(client_fd, buf, sizeof(buf), 0);
+                    if (n <= 0)
+                        break;
+                    if (send(client_fd, buf, n, 0) < 0)
+                        break;
+                    return;
+                } while(0);
+            }
+            std::cout << "delete client fd " << client_fd << std::endl;
+            loop->deleteMonitoredFd(client_fd);
+            close(client_fd);
+        });
+    });
+
+    loop->run();
     return 0;
 }
