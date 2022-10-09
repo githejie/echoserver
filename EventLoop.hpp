@@ -45,7 +45,7 @@ private:
     std::mutex mutex;
     std::list<Callback> callbacks;
     std::vector<epoll_event> ebuffer;
-    std::map<int, std::pair<EventHandler, unsigned int>> handlers;
+    std::map<int, EventHandler> handlers;
 };
 
 EventLoop::EventLoop():
@@ -98,7 +98,7 @@ void EventLoop::waitAndHandleEvents()
 
 void EventLoop::executeHandler(const epoll_event& e)
 {
-    handlers.at(e.data.fd).first(e.data.fd, e.events);
+    handlers.at(e.data.fd)(e.data.fd, e.events);
 }
 
 void EventLoop::addMonitoredFd(const int fd, const unsigned int events, const EventHandler& eh)
@@ -107,7 +107,7 @@ void EventLoop::addMonitoredFd(const int fd, const unsigned int events, const Ev
     e.events = events;
     e.data.fd = fd;
     epoll_ctl(epoll_fd, handlers.find(fd) == handlers.end() ? EPOLL_CTL_ADD : EPOLL_CTL_MOD, fd, &e);
-    handlers.emplace(fd, std::make_pair(eh, events));
+    handlers.emplace(fd, eh);
 }
 
 void EventLoop::deleteMonitoredFd(const int fd)
