@@ -17,6 +17,7 @@ public:
     ~EventLoop();
     using EventHandler = std::function<void (const int fd, const unsigned int events)>;
     void addMonitoredFd(const int fd, const unsigned int events, const EventHandler& eh);
+    void addMonitoredFd(const int fd, const unsigned int events, EventHandler&& eh);
     void deleteMonitoredFd(const int fd);
     using Callback = std::function<void ()>;
     void postCallback(const Callback& callback);
@@ -29,6 +30,8 @@ public:
     EventLoop& operator = (EventLoop&&) = delete;
 
 private:
+    template <typename T>
+    void addMonitoredFdImpl(const int fd, const unsigned int events, T&& eh);
     void runLoop();
     void initWakeupEvent();
     void waitAndHandleEvents();
@@ -103,11 +106,22 @@ void EventLoop::executeHandler(const epoll_event& e)
 
 void EventLoop::addMonitoredFd(const int fd, const unsigned int events, const EventHandler& eh)
 {
+    addMonitoredFdImpl(fd, events, eh);
+}
+
+void EventLoop::addMonitoredFd(const int fd, const unsigned int events, EventHandler&& eh)
+{
+    addMonitoredFdImpl(fd, events, std::move(eh));
+}
+
+template <typename T>
+void EventLoop::addMonitoredFdImpl(const int fd, const unsigned int events, T&& eh)
+{
     epoll_event e = {};
     e.events = events;
     e.data.fd = fd;
     epoll_ctl(epoll_fd, handlers.find(fd) == handlers.end() ? EPOLL_CTL_ADD : EPOLL_CTL_MOD, fd, &e);
-    handlers.emplace(fd, eh);
+    handlers.emplace(fd, std::forward<T>(eh));
 }
 
 void EventLoop::deleteMonitoredFd(const int fd)
