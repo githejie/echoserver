@@ -117,10 +117,13 @@ void EventLoop::addMonitoredFd(const int fd, const unsigned int events, EventHan
 template <typename T>
 void EventLoop::addMonitoredFdImpl(const int fd, const unsigned int events, T&& eh)
 {
+    if (handlers.find(fd) != handlers.end())
+        return;
+
     epoll_event e = {};
     e.events = events;
     e.data.fd = fd;
-    epoll_ctl(epoll_fd, handlers.find(fd) == handlers.end() ? EPOLL_CTL_ADD : EPOLL_CTL_MOD, fd, &e);
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &e);
     handlers.emplace(fd, std::forward<T>(eh));
 }
 
