@@ -96,7 +96,8 @@ void EventLoop::waitAndHandleEvents()
 
     ebuffer.resize(count);
     for (const auto& event : ebuffer)
-        executeHandler(event);
+        if (event.data.fd != -1)
+            executeHandler(event);
 }
 
 void EventLoop::executeHandler(const epoll_event& e)
@@ -131,6 +132,10 @@ void EventLoop::deleteMonitoredFd(const int fd)
 {
     if (handlers.find(fd) == handlers.end())
         return;
+
+    for (auto& event : ebuffer)
+        if (event.data.fd == fd)
+            event.data.fd = -1;
 
     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
     handlers.erase(fd);
