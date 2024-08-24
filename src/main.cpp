@@ -2,8 +2,9 @@
 #include <memory>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>
 #include <string.h>
+#include <netdb.h>
+#include <unistd.h>
 #include "EventLoop.hpp"
 
 int main()
