@@ -28,3 +28,6 @@ jobs:
 
     - name: Run tests
       run: cd build && ctest
+
+    - name: Check functionality
+      run: ./script/test_echo_server.sh
