@@ -7,10 +7,19 @@
 #include <unistd.h>
 #include "EventLoop.hpp"
 
-int main()
+int main(int argc, char* argv[])
 {
+    if (argc != 3)
+    {
+        std::cerr << "Usage: " << argv[0] << " <IP> <PORT>" << std::endl;
+        return -1;
+    }
+
+    const char* ip = argv[1];
+    const char* port = argv[2];
+
     addrinfo *result = nullptr;
-    int ret = getaddrinfo("127.0.0.1", "2233", nullptr, &result);
+    int ret = getaddrinfo(ip, port, nullptr, &result);
     if (ret != 0)
     {
         std::cout << "getaddrinfo failed: " 
