@@ -22,24 +22,40 @@ int main(int argc, char* argv[])
     int ret = getaddrinfo(ip, port, nullptr, &result);
     if (ret != 0)
     {
-        std::cout << "getaddrinfo failed: " 
+        std::cerr << "getaddrinfo failed: "
             << ((ret == EAI_SYSTEM) ? strerror(errno) : gai_strerror(ret)) << std::endl;
         return -1;
     }
 
-    auto loop = std::make_shared<EventLoop>();
     int listen_fd = socket(result->ai_family, SOCK_STREAM, 0);
-    bind(listen_fd, result->ai_addr, result->ai_addrlen);
+    if (listen_fd == -1) {
+        std::cerr << "socket creation failed: " << strerror(errno) << std::endl;
+        freeaddrinfo(result);
+        return -1;
+    }
+
+    if (bind(listen_fd, result->ai_addr, result->ai_addrlen) == -1) {
+        std::cerr << "bind failed: " << strerror(errno) << std::endl;
+        close(listen_fd);
+        freeaddrinfo(result);
+        return -1;
+    }
     freeaddrinfo(result);
-    listen(listen_fd, SOMAXCONN);
+
+    if (listen(listen_fd, SOMAXCONN) == -1) {
+        std::cerr << "listen failed: " << strerror(errno) << std::endl;
+        close(listen_fd);
+        return -1;
+    }
     std::cout << "listen fd " << listen_fd << std::endl;
 
+    auto loop = std::make_shared<EventLoop>();
     loop->addMonitoredFd(listen_fd, EPOLLIN, [=](const int listen_fd, const unsigned int events)
     {
         int client_fd = accept4(listen_fd, nullptr, nullptr, SOCK_NONBLOCK|SOCK_CLOEXEC);
         if (client_fd == -1)
         {
-            std::cout << "accept4 failed: " << strerror(errno) << std::endl;
+            std::cerr << "accept4 failed: " << strerror(errno) << std::endl;
             loop->stop();
             loop->deleteMonitoredFd(listen_fd);
             close(listen_fd);
