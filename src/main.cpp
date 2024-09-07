@@ -52,6 +52,7 @@ int main(int argc, char* argv[])
     auto loop = std::make_shared<EventLoop>();
     loop->addMonitoredFd(listen_fd, EPOLLIN, [=](const int listen_fd, const unsigned int events)
     {
+        (void)events;
         int client_fd = accept4(listen_fd, nullptr, nullptr, SOCK_NONBLOCK|SOCK_CLOEXEC);
         if (client_fd == -1)
         {
