@@ -4,6 +4,7 @@ project(echoserver)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src SRC_LIST)
 add_executable(echoserver ${SRC_LIST})
+target_compile_options(echoserver PRIVATE -Wall -Wextra -Werror)
 
 find_package(GTest REQUIRED)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test TEST_LIST)
