@@ -5,7 +5,17 @@
 #include <string.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <csignal>
 #include "EventLoop.hpp"
+
+std::shared_ptr<EventLoop> loop;
+
+void handle_signal(int signal) {
+    if (signal == SIGTERM) {
+        std::cout << "Received SIGTERM, stopping the loop..." << std::endl;
+        loop->stop();
+    }
+}
 
 int main(int argc, char* argv[])
 {
@@ -49,7 +59,11 @@ int main(int argc, char* argv[])
     }
     std::cout << "listen fd " << listen_fd << std::endl;
 
-    auto loop = std::make_shared<EventLoop>();
+    loop = std::make_shared<EventLoop>();
+
+    // Register the SIGTERM handler
+    std::signal(SIGTERM, handle_signal);
+
     loop->addMonitoredFd(listen_fd, EPOLLIN, [=](const int listen_fd, const unsigned int events)
     {
         (void)events;
