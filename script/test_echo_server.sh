@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+RETVAL=0
 IP="127.0.0.1"
 PORT="2233"
 MESSAGE="Hello, Echo Server!"
@@ -15,5 +16,8 @@ if [ "$RESPONSE" == "$MESSAGE" ]; then
     echo "Echo server is working correctly! Response: $RESPONSE"
 else
     echo "Unexpected response from echo server: $RESPONSE"
-    exit 1
+    $RETVAL=1
 fi
+
+kill $!
+exit $RETVAL
